@@ -16,7 +16,7 @@ window.CONFIG = {
   // 'auto' = WebXR (Three.js) on Android | model-viewer on iOS Safari/Chrome
   // 'webxr' = Three.js WebXR only | 'model-viewer' = model-viewer everywhere on mobile
   AR_BACKEND: "auto",
-  USE_MODEL_VIEWER_ON_ANDROID: false,
+  USE_MODEL_VIEWER_ON_ANDROID: true,
   CHARACTER_MODEL: "assets/models/rpm_fullbody_opt.glb",
 
   // ─── Character Settings ──────────────────────────────────────────────────────
