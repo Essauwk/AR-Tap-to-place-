@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="AR Lipsync — talk to your AR character with real-time lip movement" />
+  <title>AR Lipsync Character</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Import map for Three.js bare module specifier resolution -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "meshoptimizer": "https://cdn.jsdelivr.net/npm/meshoptimizer@0.19.0/meshopt_decoder.module.js"
+    }
+  }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --blue:   #4f8eff;
+      --purple: #7c5cff;
+      --white:  #ffffff;
+      --black:  #000000;
+      --dark:   #080c20;
+      --glass:  rgba(8, 12, 32, 0.82);
+      --font:   'Inter', system-ui, -apple-system, sans-serif;
+      --sb: env(safe-area-inset-bottom, 0px);
+      --st: env(safe-area-inset-top,    0px);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--dark);
+      font-family: var(--font);
+      color: var(--white);
+      touch-action: none;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* ── Canvas ──────────────────────────────────────────────────────────── */
+    #canvas-wrap {
+      position: fixed; inset: 0; z-index: 1;
+    }
+    #canvas-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+
+    /* ── Loader ──────────────────────────────────────────────────────────── */
+    #loader {
+      position: fixed; inset: 0; z-index: 900;
+      background: var(--dark);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+    }
+    .loader-logo {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.25em;
+      color: rgba(255,255,255,0.4); text-transform: uppercase;
+    }
+    .loader-bar-wrap {
+      width: 200px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+    }
+    .loader-bar-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--blue), var(--purple));
+      border-radius: 2px; transition: width 0.3s ease;
+    }
+    #loader-status {
+      font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; min-height: 16px;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────────────────── */
+    #top-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 200; pointer-events: none;
+      padding: calc(var(--st) + 14px) 20px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #ls-back-btn {
+      pointer-events: auto;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 100px; padding: 8px 14px;
+      font-size: 13px; font-weight: 600; color: var(--white);
+      cursor: pointer; min-height: 36px;
+      transition: background 0.15s;
+    }
+    #ls-back-btn:active { background: rgba(255,255,255,0.2); }
+
+    .top-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+      color: var(--blue); text-transform: uppercase;
+    }
+
+    #ls-status-badge {
+      pointer-events: none;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(8,12,32,0.75); border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 100px; padding: 6px 12px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      transition: opacity 0.3s;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #888; flex-shrink: 0; }
+    .status-dot.idle      { background: #4caf50; }
+    .status-dot.listening { background: #ff9800; animation: pulse-dot 1s ease-in-out infinite; }
+    .status-dot.thinking  { background: #9c27b0; animation: pulse-dot 1.2s ease-in-out infinite; }
+    .status-dot.speaking  { background: var(--blue); animation: pulse-dot 0.8s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ── START AR button ─────────────────────────────────────────────────── */
+    #ls-start-btn {
+      position: fixed; bottom: calc(var(--sb) + 48px); left: 50%; transform: translateX(-50%);
+      z-index: 200;
+      padding: 18px 56px;
+      background: var(--white); color: var(--black);
+      border: none; border-radius: 100px;
+      font-family: var(--font); font-size: 14px; font-weight: 700; letter-spacing: 0.14em;
+      cursor: pointer; min-height: 56px; white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    #ls-start-btn:hover { transform: translateX(-50%) scale(1.03); box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+    #ls-start-btn:active { transform: translateX(-50%) scale(0.97); }
+    #ls-start-btn.hidden { display: none !important; }
+
+    /* ── AR Reticle ──────────────────────────────────────────────────────── */
+    #ls-reticle {
+      position: fixed; bottom: 28%; left: 50%; transform: translateX(-50%);
+      width: 72px; height: 72px;
+      border: 2px solid rgba(255,255,255,0.85); border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.25), inset 0 0 0 1px rgba(255,255,255,0.15);
+      pointer-events: none; z-index: 50;
+      animation: reticle-pulse 1.6s ease-in-out infinite;
+      display: none;
+    }
+    @keyframes reticle-pulse {
+      0%,100%{ opacity:0.85; transform:translateX(-50%) scale(1); }
+      50%     { opacity:0.5;  transform:translateX(-50%) scale(1.08); }
+    }
+
+    /* ── Scan prompt ─────────────────────────────────────────────────────── */
+    #ls-scan-prompt {
+      position: fixed; top: calc(var(--st) + 80px); left: 50%; transform: translateX(-50%);
+      z-index: 200; pointer-events: none;
+      padding: 10px 20px; border-radius: 100px;
+      background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size: 13px; font-weight: 500; letter-spacing: 0.04em;
+      display: none;
+    }
+
+    /* ── Tap prompt (tap-to-place) ───────────────────────────────────────── */
+    #ls-tap-prompt {
+      position: fixed; bottom: calc(var(--sb) + 90px); left: 50%; transform: translateX(-50%);
+      z-index: 200; pointer-events: none;
+      display: none; flex-direction: column; align-items: center; gap: 16px;
+      animation: float 2.5s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-10px)} }
+    .tap-ring {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      border: 1px solid rgba(255,255,255,0.4); border-radius: 50%;
+      animation: tap-ripple 2s ease-out infinite;
+    }
+    .tap-ring-1 { width:80px; height:80px; }
+    .tap-ring-2 { width:110px; height:110px; animation-delay:0.5s; }
+    @keyframes tap-ripple {
+      0%   { opacity:0.6; transform:translate(-50%,-50%) scale(0.8); }
+      100% { opacity:0;   transform:translate(-50%,-50%) scale(1.4); }
+    }
+    .tap-icon { width:64px; height:64px; display:flex; align-items:center; justify-content:center; position:relative; z-index:1; }
+    .tap-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      margin-top: 44px; position: relative; z-index: 1;
+    }
+
+    /* ── Chat UI ─────────────────────────────────────────────────────────── */
+    #chat-ui {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      padding: 0 16px calc(var(--sb) + 16px);
+      display: none; flex-direction: column; gap: 12px; align-items: center;
+    }
+
+    #ls-transcript {
+      width: 100%; max-width: 420px;
+      background: var(--glass); border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-radius: 16px; padding: 14px 16px;
+      font-size: 14px; line-height: 1.65; color: rgba(255,255,255,0.92);
+      min-height: 56px; text-align: left;
+    }
+
+    .chat-row {
+      width: 100%; max-width: 420px;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    #ls-mic-btn {
+      flex-shrink: 0;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--blue); border: none;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      cursor: pointer; box-shadow: 0 4px 20px rgba(79,142,255,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      min-width: 44px; min-height: 44px;
+    }
+    #ls-mic-btn:active { transform: scale(0.93); }
+    #ls-mic-btn.listening {
+      animation: mic-pulse 1.2s ease-in-out infinite;
+      background: #ff5252;
+      box-shadow: 0 0 0 0 rgba(255,82,82,0.5);
+    }
+    @keyframes mic-pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(255,82,82,0.6); }
+      50%  { box-shadow: 0 0 0 18px rgba(255,82,82,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(255,82,82,0);    }
+    }
+    #ls-mic-label { font-size: 7px; font-weight: 700; letter-spacing: 0.12em; color: var(--white); }
+
+    #ls-text-input {
+      flex: 1;
+      background: var(--glass); border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-radius: 100px; padding: 14px 18px;
+      font-family: var(--font); font-size: 14px; color: var(--white);
+      outline: none; min-height: 50px;
+    }
+    #ls-text-input::placeholder { color: rgba(255,255,255,0.35); }
+    #ls-text-input:focus { border-color: rgba(79,142,255,0.5); }
+
+    #ls-send-btn {
+      flex-shrink: 0;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: var(--glass); border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--white);
+      transition: background 0.15s, transform 0.15s;
+      min-width: 44px; min-height: 44px;
+    }
+    #ls-send-btn:active { transform: scale(0.93); background: rgba(79,142,255,0.3); }
+
+    #ls-stop-btn {
+      display: none;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 100px; padding: 8px 20px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--white);
+      cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      transition: background 0.15s;
+    }
+    #ls-stop-btn.visible { display: block; }
+    #ls-stop-btn:active { background: rgba(255,255,255,0.2); }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    #ls-toast {
+      position: fixed; top: calc(var(--st) + 80px); left: 50%; transform: translateX(-50%);
+      z-index: 600;
+      background: rgba(30,30,30,0.92); border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 100px; padding: 10px 22px;
+      font-size: 13px; color: var(--white); white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    #ls-toast.show { opacity: 1; }
+
+    /* ── Scale Controls ──────────────────────────────────────────────────── */
+    #scale-controls {
+      position: fixed; right: 16px; bottom: calc(var(--sb) + 180px);
+      z-index: 200; display: none; flex-direction: column; gap: 10px; align-items: center;
+    }
+    #scale-controls.visible { display: flex; }
+    .scale-btn {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: rgba(8,12,32,0.82); border: 1.5px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white); font-size: 22px; font-weight: 300;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      transition: background 0.15s, transform 0.1s;
+      min-width: 44px; min-height: 44px;
+    }
+    .scale-btn:active { transform: scale(0.9); background: rgba(79,142,255,0.3); }
+    #scale-display {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5); text-align: center;
+    }
+
+    /* ── Hidden helper ───────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Canvas -->
+  <div id="canvas-wrap"></div>
+
+  <!-- Loader -->
+  <div id="loader">
+    <div class="loader-logo">AR Lipsync</div>
+    <div class="loader-bar-wrap"><div class="loader-bar-fill" id="ls-bar"></div></div>
+    <div id="loader-status">Initializing…</div>
+  </div>
+
+  <!-- Top bar -->
+  <div id="top-bar">
+    <button id="ls-back-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      BACK
+    </button>
+    <span class="top-title">AR LIPSYNC</span>
+    <div id="ls-status-badge">
+      <div class="status-dot" id="ls-dot"></div>
+      <span id="ls-status-text">Loading…</span>
+    </div>
+  </div>
+
+  <!-- START AR button -->
+  <button id="ls-start-btn" class="hidden">START AR LIPSYNC</button>
+
+  <!-- Reticle -->
+  <div id="ls-reticle"></div>
+
+  <!-- Scan prompt -->
+  <div id="ls-scan-prompt">Move your device to scan the floor…</div>
+
+  <!-- Tap prompt -->
+  <div id="ls-tap-prompt">
+    <div class="tap-ring tap-ring-1"></div>
+    <div class="tap-ring tap-ring-2"></div>
+    <div class="tap-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 11.5V6a2 2 0 0 1 4 0v3.5"/>
+        <path d="M13 9.5a2 2 0 0 1 4 0V14"/>
+        <path d="M17 11.5a2 2 0 0 1 4 0v3c0 3.314-2.686 6-6 6h-1.5a6 6 0 0 1-5.477-3.547l-2.185-4.37A2 2 0 0 1 9 10.5"/>
+      </svg>
+    </div>
+    <div class="tap-label">TAP TO PLACE</div>
+  </div>
+
+  <!-- Chat UI -->
+  <div id="chat-ui">
+    <div id="ls-transcript">Tap the mic and say something…</div>
+    <div class="chat-row">
+      <button id="ls-mic-btn" aria-label="Speak">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+        <span id="ls-mic-label">SPEAK</span>
+      </button>
+      <input id="ls-text-input" type="text" placeholder="Or type here…" autocomplete="off" autocorrect="off" spellcheck="false" />
+      <button id="ls-send-btn" aria-label="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <button id="ls-stop-btn">■ STOP</button>
+  </div>
+
+  <!-- Toast -->
+  <div id="ls-toast"></div>
+
+  <!-- Scale Controls (shown after character is placed) -->
+  <div id="scale-controls">
+    <button class="scale-btn" id="scale-up-btn" aria-label="Scale up">＋</button>
+    <div id="scale-display">SIZE</div>
+    <button class="scale-btn" id="scale-down-btn" aria-label="Scale down">－</button>
+  </div>
+
+  <!-- Config must load before setup -->
+  <script src="config.js"></script>
+  <script type="module" src="lipsync/lipsyncSetup.js?v=2"></script>
+</body>
+</html>

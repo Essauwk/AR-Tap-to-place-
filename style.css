@@ -1,0 +1,874 @@
+/* ============================================================================
+   style.css — AR Character Experience
+   Theme: Black & White, Premium, Minimal
+   ============================================================================ */
+
+/* ── Google Font ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ── Reset & Base ────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --black: #000000;
+  --white: #ffffff;
+  --grey-100: #f5f5f5;
+  --grey-200: #e0e0e0;
+  --grey-400: #9e9e9e;
+  --grey-700: #424242;
+  --grey-900: #111111;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius: 12px;
+  --transition: cubic-bezier(0.4, 0, 0.2, 1);
+  /* iOS safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--black);
+  font-family: var(--font);
+  color: var(--white);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* When WebXR is active, the background must be transparent so the camera shows through */
+html.xr-active, body.xr-active {
+  background: transparent !important;
+}
+
+#ar-container {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
+#ar-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#character-model-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  background: transparent;
+  pointer-events: none;
+}
+
+body.mv-active #character-model-viewer {
+  pointer-events: auto;
+}
+
+.ar-start-btn-style {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 16px 48px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 100px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  z-index: 200;
+  pointer-events: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  min-height: 44px;
+}
+
+.ar-start-btn-style:active {
+  transform: translateX(-50%) scale(0.96);
+  background: var(--grey-200);
+}
+
+/* Safari camera-AR reticle (CSS ring, no WebXR hit-test) */
+#safari-ar-reticle {
+  position: fixed;
+  bottom: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(255,255,255,0.15);
+  pointer-events: none;
+  z-index: 10;
+  animation: reticle-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes reticle-pulse {
+  0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+  50%       { opacity: 0.5;  transform: translateX(-50%) scale(1.08); }
+}
+
+body.mv-active #tap-prompt,
+body.mv-active #top-logo,
+body.mv-active #ai-chat-ui {
+  z-index: 150;
+}
+
+/* model-viewer WebXR: show tap prompt while placing */
+model-viewer[ar-status="session-started"] ~ #tap-prompt,
+body.mv-active model-viewer[ar-status="session-started"] ~ #tap-prompt {
+  display: flex !important;
+}
+
+#mv-scan-prompt {
+  position: fixed;
+  top: calc(80px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  padding: 10px 20px;
+  border-radius: 100px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+#mv-scan-prompt.hidden {
+  display: none !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.visually-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+  position: absolute !important;
+}
+
+/* ── Loading Screen ──────────────────────────────────────────────────────── */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.6s ease forwards;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.logo-wrap {
+  animation: logoPulse 2s ease-in-out infinite;
+}
+
+#loading-logo {
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0;
+  animation: logoFadeIn 0.8s ease 0.3s forwards;
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes logoFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.loading-status {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fadeIn 0.5s ease 0.8s forwards;
+  min-height: 20px;
+  transition: opacity 0.3s ease;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  animation: fadeIn 0.5s ease 1s forwards;
+}
+
+.loading-dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--white);
+  border-radius: 50%;
+  animation: dotBounce 1.4s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-8px); opacity: 1; }
+}
+
+/* ── Error Screen ────────────────────────────────────────────────────────── */
+#error-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  max-width: 320px;
+}
+
+.error-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.error-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.error-content p {
+  font-size: 14px;
+  color: var(--grey-400);
+  line-height: 1.6;
+}
+
+.btn-primary {
+  margin-top: 8px;
+  padding: 12px 32px;
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  border-radius: 100px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.2s var(--transition), background 0.2s;
+  min-height: 44px;
+}
+
+.btn-primary:active {
+  transform: scale(0.96);
+  background: var(--grey-200);
+}
+
+/* ── AR Container ────────────────────────────────────────────────────────── */
+#ar-container {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
+#ar-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ── Top Logo ────────────────────────────────────────────────────────────── */
+#top-logo {
+  position: fixed;
+  top: calc(var(--safe-top) + 16px);
+  left: 20px;
+  width: 64px;
+  height: auto;
+  object-fit: contain;
+  z-index: 100;
+  filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+#top-logo.visible {
+  opacity: 1;
+}
+
+/* ── Tap Prompt ──────────────────────────────────────────────────────────── */
+#tap-prompt {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 100px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 100;
+  animation: tapFloat 2.5s ease-in-out infinite;
+}
+
+@keyframes tapFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-10px); }
+}
+
+.tap-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 50%;
+  animation: tapRipple 2s ease-out infinite;
+}
+
+.tap-ring-1 {
+  width: 80px;
+  height: 80px;
+  animation-delay: 0s;
+}
+
+.tap-ring-2 {
+  width: 110px;
+  height: 110px;
+  animation-delay: 0.5s;
+}
+
+@keyframes tapRipple {
+  0%   { opacity: 0.6; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.4); }
+}
+
+.tap-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.tap-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--white);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  position: relative;
+  z-index: 1;
+  margin-top: 40px;
+}
+
+/* ── Slide Overlay ───────────────────────────────────────────────────────── */
+#slide-overlay {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 24px);
+  left: 20px;
+  right: 20px;
+  z-index: 100;
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.slide-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+.slide-num {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--grey-400);
+  flex-shrink: 0;
+}
+
+.slide-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── AI Chat UI ──────────────────────────────────────────────────────────── */
+#ai-chat-ui {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 20px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 100;
+  padding: 0 20px;
+}
+
+#transcript-box {
+  width: 100%;
+  max-width: 340px;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+#transcript-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--grey-200);
+  text-align: center;
+  width: 100%;
+}
+
+#mic-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--white);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  transition: transform 0.2s var(--transition), box-shadow 0.2s;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+#mic-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+#mic-btn.listening {
+  animation: micPulse 1.5s ease-in-out infinite;
+  background: var(--white);
+  box-shadow: 0 0 0 0 rgba(255,255,255,0.4);
+}
+
+@keyframes micPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(255,255,255,0.5); }
+  50%  { box-shadow: 0 0 0 16px rgba(255,255,255,0);   }
+  100% { box-shadow: 0 0 0 0   rgba(255,255,255,0);    }
+}
+
+.mic-icon { display: block; }
+
+.mic-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--black);
+}
+
+#listening-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--grey-400);
+  letter-spacing: 0.06em;
+}
+
+.listen-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.listen-dots span {
+  width: 5px;
+  height: 5px;
+  background: var(--white);
+  border-radius: 50%;
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.listen-dots span:nth-child(2) { animation-delay: 0.16s; }
+.listen-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+/* ── Presentation Complete ────────────────────────────────────────────────── */
+#presentation-complete {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.complete-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 100px;
+  padding: 12px 24px;
+  white-space: nowrap;
+}
+
+.complete-check {
+  font-size: 18px;
+  color: var(--white);
+}
+
+.complete-inner p {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--white);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  top: calc(var(--safe-top) + 80px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30,30,30,0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 100px;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--white);
+  z-index: 500;
+  animation: toastIn 0.3s ease forwards;
+  white-space: nowrap;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Utility Animations ──────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── iOS WebXR Viewer guide ──────────────────────────────────────────────── */
+#ios-ar-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ios-ar-guide-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--grey-900);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+}
+
+.ios-ar-guide-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: none;
+  background: transparent;
+  color: var(--grey-400);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ios-ar-guide-card h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-right: 28px;
+}
+
+.ios-ar-guide-lead {
+  font-size: 13px;
+  color: var(--grey-400);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.ios-ar-guide-steps {
+  margin: 0 0 16px 18px;
+  font-size: 13px;
+  color: var(--grey-200);
+  line-height: 1.7;
+}
+
+.ios-ar-guide-url {
+  word-break: break-all;
+  font-size: 12px;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.ios-ar-guide-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ios-ar-appstore {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  text-decoration: underline;
+  padding: 8px;
+}
+
+.ios-ar-guide-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #7dffb2;
+  text-align: center;
+  min-height: 18px;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Responsive portrait mobile optimization ─────────────────────────────── */
+@media (max-width: 430px) {
+  #top-logo { width: 52px; }
+  #tap-prompt { bottom: calc(var(--safe-bottom) + 80px); }
+  #slide-overlay { left: 12px; right: 12px; }
+  #ai-chat-ui { padding: 0 12px; }
+}
+
+/* ── START AR LIPSYNC Button ─────────────────────────────────────────────── */
+#lipsync-entry-btn {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  background: rgba(6, 10, 30, 0.88);
+  color: #ffffff;
+  text-decoration: none;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 100px;
+  border: 1.5px solid rgba(79, 142, 255, 0.55);
+  box-shadow:
+    0 4px 24px rgba(79, 142, 255, 0.25),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-height: 44px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  /* Subtle glow animation */
+  animation: lipsyncBtnGlow 3s ease-in-out infinite;
+}
+
+@keyframes lipsyncBtnGlow {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(79, 142, 255, 0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+    border-color: rgba(79, 142, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 32px rgba(79, 142, 255, 0.45), 0 0 60px rgba(124, 92, 255, 0.15), inset 0 1px 0 rgba(255,255,255,0.12);
+    border-color: rgba(124, 92, 255, 0.8);
+  }
+}
+
+#lipsync-entry-btn:hover {
+  transform: translateX(-50%) scale(1.04);
+  box-shadow: 0 6px 36px rgba(79, 142, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.14);
+  border-color: rgba(79, 142, 255, 0.95);
+  animation: none;
+}
+
+#lipsync-entry-btn:active {
+  transform: translateX(-50%) scale(0.97);
+}
+
+/* Push the main AR button up to make room for lipsync button */
+#ar-start-btn {
+  bottom: 72px !important;
+}
+
+/* --- Premium Landing Page --- */
+.landing-body {
+  margin: 0; padding: 0;
+  background: #05070a;
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  font-family: "Inter", sans-serif;
+  display: flex; justify-content: center; align-items: center;
+  position: relative;
+}
+
+.landing-bg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(circle at center, #0a1128 0%, #030407 100%);
+  z-index: 1;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-orb {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
+  animation: float 10s infinite ease-in-out alternate;
+}
+.orb-1 {
+  width: 400px; height: 400px; background: #00ffd5; top: -100px; left: -100px;
+}
+.orb-2 {
+  width: 500px; height: 500px; background: #7000ff; bottom: -150px; right: -150px; animation-delay: -5s;
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, 50px) scale(1.1); }
+}
+
+.landing-content {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; gap: 60px;
+}
+
+.brand-container {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: transform 0.6s ease, opacity 0.6s ease;
+}
+
+.landing-logo {
+  width: 180px; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2));
+}
+
+.landing-subtitle {
+  color: #a0aabf; font-size: 14px; letter-spacing: 6px; margin: 0;
+  font-weight: 400; text-transform: uppercase;
+}
+
+.premium-btn {
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 20px 45px;
+  border-radius: 100px;
+  cursor: pointer;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.4s ease;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+.btn-text {
+  color: #ffffff; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+  position: relative; z-index: 2;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.premium-btn::before {
+  content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: all 0.6s ease; z-index: 1;
+}
+
+.premium-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 20px 40px rgba(0,255,213,0.15), 0 0 20px rgba(112,0,255,0.2);
+}
+
+.premium-btn:hover::before { left: 100%; }
+
+/* Click Animation Classes */
+.btn-clicked {
+  transform: scale(0.9) !important;
+  opacity: 0;
+}
+.brand-container.fade-up {
+  transform: translateY(-40px); opacity: 0;
+}
+.flash-bg {
+  background: #ffffff !important; opacity: 1 !important; z-index: 999;
+}
+

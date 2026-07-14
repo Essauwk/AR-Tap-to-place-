@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>TRY — LiveSpeak Lipsync</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --blue:   #4f8eff;
+      --purple: #7c5cff;
+      --green:  #00e676;
+      --white:  #ffffff;
+      --black:  #000000;
+      --dark:   #080c20;
+      --glass:  rgba(8, 12, 32, 0.85);
+      --font:   'Inter', system-ui, -apple-system, sans-serif;
+      --sb: env(safe-area-inset-bottom, 0px);
+      --st: env(safe-area-inset-top,    0px);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--dark);
+      font-family: var(--font);
+      color: var(--white);
+      touch-action: none;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* ── LiveSpeak iframe fills the entire screen ─────────────────────────── */
+    #livespeak-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      z-index: 1;
+      background: var(--dark);
+    }
+
+    /* ── Setup overlay (shown before session starts) ──────────────────────── */
+    #setup-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: linear-gradient(135deg, #080c20 0%, #0d1340 50%, #080c20 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: calc(var(--st) + 20px) 24px calc(var(--sb) + 20px);
+    }
+
+    .setup-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 32px 28px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+
+    .setup-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .setup-logo .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      animation: logo-pulse 2s ease-in-out infinite;
+    }
+    @keyframes logo-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+    .setup-logo span {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.25em;
+      color: rgba(255,255,255,0.5); text-transform: uppercase;
+    }
+
+    .setup-title {
+      font-size: 28px; font-weight: 700;
+      background: linear-gradient(135deg, var(--white) 0%, rgba(255,255,255,0.6) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    .setup-sub {
+      font-size: 14px; color: rgba(255,255,255,0.45);
+      margin-bottom: 32px; line-height: 1.5;
+    }
+
+    .field-group { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+
+    .field-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.4); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--white);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field-input:focus { border-color: rgba(79,142,255,0.5); }
+    .field-input::placeholder { color: rgba(255,255,255,0.2); }
+
+    .field-row { display: flex; gap: 12px; }
+    .field-row .field-col { flex: 1; }
+
+    .mic-status {
+      font-size: 12px; color: rgba(255,255,255,0.35);
+      margin-top: 6px; min-height: 16px;
+    }
+    .mic-status.ok   { color: #00e676; }
+    .mic-status.warn { color: #ff9800; }
+    .mic-status.err  { color: #ff5252; }
+
+    .start-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border: none; border-radius: 14px;
+      font-family: var(--font); font-size: 15px; font-weight: 700;
+      letter-spacing: 0.08em; color: var(--white);
+      cursor: pointer;
+      box-shadow: 0 8px 32px rgba(79,142,255,0.4);
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,142,255,0.5); }
+    .start-btn:active { transform: translateY(0); }
+    .start-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Top bar (shown during session) ──────────────────────────────────── */
+    #top-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 400; pointer-events: none;
+      padding: calc(var(--st) + 14px) 20px 14px;
+      display: none; align-items: center; justify-content: space-between;
+    }
+    #top-bar.visible { display: flex; }
+
+    #back-btn {
+      pointer-events: auto;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(8,12,32,0.85); border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 100px; padding: 8px 14px;
+      font-size: 13px; font-weight: 600; color: var(--white);
+      cursor: pointer; min-height: 36px;
+      transition: background 0.15s;
+    }
+    #back-btn:active { background: rgba(255,255,255,0.15); }
+
+    .top-badge {
+      pointer-events: none;
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(8,12,32,0.85); border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 100px; padding: 7px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .live-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      animation: live-blink 1s step-end infinite;
+    }
+    @keyframes live-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    #mic-badge {
+      pointer-events: auto;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(8,12,32,0.85); border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 100px; padding: 7px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #mic-badge:active { background: rgba(255,255,255,0.15); }
+    #mic-badge.muted { border-color: rgba(255,82,82,0.4); }
+    #mic-badge.muted .mic-dot { background: #ff5252; }
+    .mic-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      transition: background 0.2s;
+    }
+
+    /* ── Hidden helper ───────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- LiveSpeak fills the background -->
+  <iframe
+    id="livespeak-frame"
+    src="about:blank"
+    allow="autoplay; microphone; camera"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+    title="LiveSpeak Character"
+  ></iframe>
+
+  <!-- Top bar (session active) -->
+  <div id="top-bar">
+    <button id="back-btn" onclick="endSession()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      BACK
+    </button>
+    <div class="top-badge">
+      <div class="live-dot"></div>
+      LIVESPEAK
+    </div>
+    <button id="mic-badge" onclick="toggleMic()">
+      <div class="mic-dot" id="mic-dot"></div>
+      <span id="mic-label">MIC ON</span>
+    </button>
+  </div>
+
+  <!-- Setup overlay -->
+  <div id="setup-overlay">
+    <div class="setup-card">
+      <div class="setup-logo">
+        <div class="dot"></div>
+        <span>LiveSpeak • TRY Mode</span>
+      </div>
+
+      <h1 class="setup-title">Real-Time<br/>Lipsync</h1>
+      <p class="setup-sub">Speak into your microphone. The character will animate her lips in real-time using MetaPerson LiveSpeak technology.</p>
+
+      <div class="field-group">
+        <!-- Client credentials -->
+        <div>
+          <div class="field-label">🔑 Client ID</div>
+          <input id="client-id" class="field-input" type="text" placeholder="Your AvatarSDK Client ID" autocomplete="off" spellcheck="false" />
+        </div>
+        <div>
+          <div class="field-label">🔒 Client Secret</div>
+          <input id="client-secret" class="field-input" type="password" placeholder="Your AvatarSDK Client Secret" autocomplete="off" />
+        </div>
+
+        <!-- Mic selector -->
+        <div>
+          <div class="field-label">🎤 Microphone</div>
+          <select id="mic-select" class="field-input"></select>
+          <div class="mic-status" id="mic-status">Initializing microphone…</div>
+        </div>
+      </div>
+
+      <button id="start-btn" class="start-btn" disabled onclick="startSession()">
+        🎙️ Start LiveSpeak Session
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────────────
+    const LIVESPEAK_URL = 'https://metaperson.avatarsdk.com/livespeak/index.html';
+    const TARGET_SAMPLE_RATE = 16000;
+    const PCM_CHUNK_SIZE = 320;
+
+    // ── State ───────────────────────────────────────────────────────────────
+    const frame       = document.getElementById('livespeak-frame');
+    const setupOvl    = document.getElementById('setup-overlay');
+    const topBar      = document.getElementById('top-bar');
+    const startBtn    = document.getElementById('start-btn');
+    const micSelect   = document.getElementById('mic-select');
+    const micStatus   = document.getElementById('mic-status');
+    const micBadge    = document.getElementById('mic-badge');
+    const micLabel    = document.getElementById('mic-label');
+    const micDot      = document.getElementById('mic-dot');
+
+    let audioCtx       = null;
+    let micStream      = null;
+    let micSourceNode  = null;
+    let micWorkletNode = null;
+    let resampler      = null;
+    let pcmSendBuf     = new Float32Array(0);
+    let micReady       = false;
+    let micMuted       = false;
+    let iframeLoaded   = false;
+    let liveReady      = false;
+
+    // ── Mic status text ─────────────────────────────────────────────────────
+    function setMicStatus(msg, type = '') {
+      micStatus.textContent = msg;
+      micStatus.className = 'mic-status' + (type ? ' ' + type : '');
+    }
+
+    // ── Populate microphone list ────────────────────────────────────────────
+    async function initMics() {
+      try {
+        const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+        tmp.getTracks().forEach(t => t.stop());
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        fillMicList(devices);
+      } catch(e) {
+        setMicStatus('Microphone permission required.', 'warn');
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          fillMicList(devices);
+        } catch { setMicStatus('No microphone found.', 'err'); }
+      }
+    }
+
+    function fillMicList(devices) {
+      const inputs = devices.filter(d => d.kind === 'audioinput');
+      micSelect.innerHTML = '';
+      if (!inputs.length) {
+        micSelect.innerHTML = '<option value="">No microphone found</option>';
+        micSelect.disabled = true;
+        setMicStatus('No audio input device found.', 'err');
+        return;
+      }
+      inputs.forEach((d, i) => {
+        const o = document.createElement('option');
+        o.value = d.deviceId;
+        o.textContent = d.label || `Microphone ${i + 1}`;
+        micSelect.appendChild(o);
+      });
+      setMicStatus('Microphone ready.', 'ok');
+      startBtn.disabled = false;
+    }
+
+    // ── AudioWorklet PCM capture ────────────────────────────────────────────
+    function makeWorkletUrl() {
+      const code = `
+        class PcmCapture extends AudioWorkletProcessor {
+          process(inputs) {
+            const ch = inputs[0]?.[0];
+            if (ch?.length) {
+              const copy = new Float32Array(ch.length);
+              copy.set(ch);
+              this.port.postMessage(copy, [copy.buffer]);
+            }
+            return true;
+          }
+        }
+        registerProcessor('pcm-capture', PcmCapture);
+      `;
+      return URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+    }
+
+    class StreamResampler {
+      constructor(inRate, outRate) {
+        this.step = inRate / outRate;
+        this.pos = 0;
+        this.buf = new Float32Array(0);
+      }
+      process(input) {
+        const merged = new Float32Array(this.buf.length + input.length);
+        merged.set(this.buf); merged.set(input, this.buf.length);
+        this.buf = merged;
+        const out = [];
+        while (this.pos + 1 < this.buf.length) {
+          const i = Math.floor(this.pos), f = this.pos - i;
+          out.push(this.buf[i] * (1 - f) + this.buf[i + 1] * f);
+          this.pos += this.step;
+        }
+        const consumed = Math.floor(this.pos);
+        if (consumed > 0) { this.buf = this.buf.slice(consumed); this.pos -= consumed; }
+        return new Float32Array(out);
+      }
+    }
+
+    function sendPcm(chunk) {
+      if (!chunk?.length || !frame.contentWindow || micMuted) return;
+      frame.contentWindow.postMessage({
+        source: 'livespeak',
+        eventName: 'pcm',
+        sampleRate: TARGET_SAMPLE_RATE,
+        buffer: chunk.buffer
+      }, '*', [chunk.buffer]);
+    }
+
+    function flushPcm(samples) {
+      if (!samples?.length) return;
+      if (!resampler) resampler = new StreamResampler(audioCtx.sampleRate, TARGET_SAMPLE_RATE);
+      const res = resampler.process(samples);
+      if (!res.length) return;
+      const merged = new Float32Array(pcmSendBuf.length + res.length);
+      merged.set(pcmSendBuf); merged.set(res, pcmSendBuf.length);
+      pcmSendBuf = merged;
+      while (pcmSendBuf.length >= PCM_CHUNK_SIZE) {
+        const chunk = pcmSendBuf.slice(0, PCM_CHUNK_SIZE);
+        pcmSendBuf  = pcmSendBuf.slice(PCM_CHUNK_SIZE);
+        if (iframeLoaded) sendPcm(chunk);
+      }
+    }
+
+    async function prepareMic() {
+      if (micReady) return;
+      const deviceId = micSelect.value;
+      const constraints = {
+        audio: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          channelCount: 1,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      };
+      setMicStatus('Requesting microphone…', 'warn');
+      micStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      const ACtx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new ACtx({ sampleRate: TARGET_SAMPLE_RATE });
+
+      const wUrl = makeWorkletUrl();
+      await audioCtx.audioWorklet.addModule(wUrl);
+      URL.revokeObjectURL(wUrl);
+
+      micSourceNode  = audioCtx.createMediaStreamSource(micStream);
+      micWorkletNode = new AudioWorkletNode(audioCtx, 'pcm-capture', {
+        numberOfInputs: 1, numberOfOutputs: 0, channelCount: 1, outputChannelCount: []
+      });
+      micWorkletNode.port.onmessage = ev => {
+        flushPcm(ev.data instanceof Float32Array ? ev.data : new Float32Array(ev.data));
+      };
+      micSourceNode.connect(micWorkletNode);
+      micReady = true;
+      setMicStatus('Mic active — streaming to LiveSpeak.', 'ok');
+    }
+
+    // ── Toggle mute ─────────────────────────────────────────────────────────
+    function toggleMic() {
+      micMuted = !micMuted;
+      micBadge.classList.toggle('muted', micMuted);
+      micDot.style.background  = micMuted ? '#ff5252' : '#00e676';
+      micLabel.textContent = micMuted ? 'MIC OFF' : 'MIC ON';
+      if (audioCtx) {
+        if (micMuted) audioCtx.suspend();
+        else audioCtx.resume();
+      }
+    }
+
+    // ── Authentication to LiveSpeak ─────────────────────────────────────────
+    function sendAuth() {
+      const id  = document.getElementById('client-id').value.trim();
+      const sec = document.getElementById('client-secret').value.trim();
+      if (id && sec) {
+        frame.contentWindow?.postMessage({ eventName: 'authenticate', clientId: id, clientSecret: sec }, '*');
+      }
+    }
+
+    // ── PostMessage listener ────────────────────────────────────────────────
+    window.addEventListener('message', ev => {
+      const d = ev.data;
+      if (d?.source === 'livespeak') {
+        if (d.eventName === 'livespeak_loaded') {
+          liveReady = true;
+          sendAuth();
+        }
+      }
+    });
+
+    // ── iframe load ─────────────────────────────────────────────────────────
+    frame.addEventListener('load', async () => {
+      iframeLoaded = true;
+      if (audioCtx?.state !== 'running') await audioCtx?.resume();
+    });
+
+    // ── Start session ───────────────────────────────────────────────────────
+    async function startSession() {
+      startBtn.disabled = true;
+      startBtn.textContent = '⏳ Starting…';
+
+      try {
+        await prepareMic();
+
+        // Build LiveSpeak URL with mode=raw_stream
+        const url = new URL(LIVESPEAK_URL);
+        url.searchParams.set('mode', 'raw_stream');
+
+        setupOvl.style.display = 'none';
+        topBar.classList.add('visible');
+
+        iframeLoaded = false;
+        frame.src = url.toString();
+
+      } catch(err) {
+        console.error('Failed to start session:', err);
+        setMicStatus('Failed: ' + (err?.message || err), 'err');
+        startBtn.disabled = false;
+        startBtn.textContent = '🎙️ Start LiveSpeak Session';
+      }
+    }
+
+    // ── End session ─────────────────────────────────────────────────────────
+    function endSession() {
+      // Stop mic
+      micWorkletNode?.disconnect(); micWorkletNode = null;
+      micSourceNode?.disconnect();  micSourceNode  = null;
+      audioCtx?.close();             audioCtx       = null;
+      micStream?.getTracks().forEach(t => t.stop()); micStream = null;
+      resampler = null; pcmSendBuf = new Float32Array(0);
+      micReady = false; iframeLoaded = false; liveReady = false;
+
+      // Reset iframe
+      frame.src = 'about:blank';
+
+      // Back to index
+      location.href = 'index.html';
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    initMics();
+  </script>
+</body>
+</html>

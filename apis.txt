@@ -1,0 +1,3 @@
+Gemini_API_Key = AQ.Ab8RN6II5VmvQWM7oLKfLkaM3rVinrP_wyri4jZ7Hck9njYa8w
+
+ElevenLabs_API_Key = sk_34e6d6fd18c147fe9a7bc9ccf76ea4e9cd219ba001b23258

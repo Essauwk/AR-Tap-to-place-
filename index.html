@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="AR Interactive Character — tap to place a 3D presenter in your space" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Permissions-Policy" content="camera=(self), xr-spatial-tracking=(self)" />
+  <title>AR Character Experience</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!--
+    Import map: maps bare specifiers to CDN URLs for ES module resolution.
+    three@0.160.0 jsm/ path = proper ES modules (GLTFLoader, etc.)
+    Must come BEFORE any type="module" scripts.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "meshoptimizer": "https://cdn.jsdelivr.net/npm/meshoptimizer@0.19.0/meshopt_decoder.module.js"
+    }
+  }
+  </script>
+
+  <!-- model-viewer + meshopt (character.glb uses meshopt compression) -->
+  <script type="module">
+    import { MeshoptDecoder } from 'meshoptimizer';
+    await MeshoptDecoder.ready;
+    await import('https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js');
+    await customElements.whenDefined('model-viewer');
+    const ModelViewerElement = customElements.get('model-viewer');
+    ModelViewerElement.meshoptDecoder = MeshoptDecoder;
+    window.__modelViewerReady = true;
+  </script>
+</head>
+<body class="landing-body">
+  
+  <!-- Animated Background -->
+  <div class="landing-bg">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <!-- Content Container -->
+  <div class="landing-content">
+    <div class="brand-container">
+      <img src="assets/images/logo.png" alt="ARTech" class="landing-logo" />
+      <h1 class="landing-subtitle">LIVE THE EXPERIENCE</h1>
+    </div>
+
+    <button id="start-ar-btn" class="premium-btn">
+      <span class="btn-text">START AR EXPERIENCE</span>
+      <div class="btn-glow"></div>
+      <div class="btn-particles"></div>
+    </button>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-ar-btn');
+    startBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      // Add the "جامد" animation class
+      startBtn.classList.add('btn-clicked');
+      document.querySelector('.brand-container').classList.add('fade-up');
+      document.querySelector('.landing-bg').classList.add('flash-bg');
+
+      // Wait for animation to finish, then redirect
+      setTimeout(() => {
+        window.location.href = 'talkinghead.html';
+      }, 800); // 800ms animation duration
+    });
+  </script>
+</body>
+</html>
