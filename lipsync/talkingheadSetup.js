@@ -312,6 +312,7 @@ async function startWebXRSession() {
     document.getElementById('ls-start-btn').classList.add('hidden');
     document.getElementById('ls-scan-prompt').style.display = 'block';
     document.getElementById('ls-reticle').style.display = 'block';
+    document.body.classList.add('xr-active');
 
     xrSession = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['hit-test'],
@@ -323,6 +324,7 @@ async function startWebXRSession() {
 
     xrSession.addEventListener('end', () => {
       hitTestSource = null; xrSession = null;
+      document.body.classList.remove('xr-active');
     });
 
     const refSpace = await xrSession.requestReferenceSpace('viewer');
