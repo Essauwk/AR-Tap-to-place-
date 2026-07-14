@@ -92,16 +92,12 @@ async function boot() {
     setUIState('idle');
 
     // Decide AR mode
-    const webxr = await supportsWebXRAR();
-
-    if (webxr) {
-      showStartBtn('START AR LIPSYNC', startWebXRSession);
-    } else if (isIOS() && isSecure()) {
+    if (isMobile() && isSecure()) {
+      // The user explicitly requested Android to use the exact same AR tech as iPhone
+      // which is our custom SafariAR session (DeviceOrientation + getUserMedia).
       showStartBtn('START AR LIPSYNC', startSafariARSession);
-    } else if (isMobile() && isSecure()) {
-      showStartBtn('START AR LIPSYNC', startWebXRSession);
     } else {
-      // Desktop / no WebXR → 3D preview immediately
+      // Desktop / no camera → 3D preview immediately
       startDesktopPreview();
     }
 
